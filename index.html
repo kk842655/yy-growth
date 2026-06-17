@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>垚垚的成長故事書</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Huninn&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   設計系統 Design Tokens — 依 Gemini 規格
+   ============================================================ */
+:root{
+  --bg:            #FCF9F2; /* 故事書紙張 */
+  --ink:           #5D4A44; /* 鉛筆書寫感文字 */
+  --ink-soft:      #8A7770;
+  --ink-faint:     #BBA89F;
+  --pink:          #FFB5C5; /* 主色 溫暖粉紅 */
+  --pink-deep:     #F590A8;
+  --cream:         #FFF3B0; /* 輔助一 奶油黃 */
+  --cream-deep:    #E0C24A;
+  --mint:          #A8E6CF; /* 輔助二 薄荷綠 */
+  --mint-deep:     #5FAE8E;
+  --sky:           #A4D8FA; /* 輔助三 天空藍 */
+  --sky-deep:      #5AA8DE;
+  --surface:       #FFFFFF;
+  --border:        #F1E4D8;
+  --shadow:        0 8px 24px rgba(93,74,68,0.08);
+  --shadow-sm:     0 4px 12px rgba(93,74,68,0.06);
+  --radius-lg:     24px;
+  --radius-md:     18px;
+  --radius-sm:     12px;
+  --radius-pill:   999px;
+  --font-zh:       'Huninn', 'jf open 粉圓體', sans-serif;
+  --font-en:       'Nunito', sans-serif;
+}
+
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body{ margin:0; padding:0; }
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--font-en), var(--font-zh);
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+}
+h1,h2,h3,h4,button,input,textarea,select{ font-family:inherit; }
+button{ font-family:var(--font-en), var(--font-zh); }
+
+/* 中文優先套用粉圓體 */
+.zh, body{ font-family: var(--font-en), var(--font-zh); }
+
+img{ max-width:100%; display:block; }
+input,textarea,select{
+  font-size:15px; color:var(--ink);
+}
+
+/* ============================================================
+   版面 Layout
+   ============================================================ */
+#app{
+  display:flex;
+  min-height:100vh;
+}
+
+/* --- 桌面側邊欄 --- */
+.sidebar{
+  width:220px;
+  background:var(--surface);
+  border-right:1.5px dashed var(--border);
+  padding:28px 16px;
+  display:none;
+  flex-direction:column;
+  gap:4px;
+  position:sticky;
+  top:0;
+  height:100vh;
+}
+.sidebar-brand{
+  display:flex; align-items:center; gap:10px;
+  padding:0 10px 24px;
+}
+.sidebar-brand .emoji{ font-size:30px; }
+.sidebar-brand .title{ font-weight:800; font-size:17px; color:var(--ink); line-height:1.3; }
+.sidebar-brand .sub{ font-size:11px; color:var(--ink-faint); }
+
+.nav-item{
+  display:flex; align-items:center; gap:12px;
+  padding:12px 14px;
+  border-radius:var(--radius-md);
+  cursor:pointer;
+  color:var(--ink-soft);
+  font-weight:700;
+  font-size:14px;
+  border:none;
+  background:none;
+  text-align:left;
+  width:100%;
+  transition:background .15s, color .15s, transform .1s;
+}
+.nav-item .ic{ font-size:20px; }
+.nav-item:hover{ background:var(--bg); }
+.nav-item.active{
+  background:linear-gradient(135deg, var(--pink) 0%, #FFC9D6 100%);
+  color:#fff;
+  box-shadow:var(--shadow-sm);
+}
+.nav-item:active{ transform:scale(0.97); }
+
+/* --- 手機底部導覽 --- */
+.bottom-nav{
+  position:fixed; left:0; right:0; bottom:0;
+  background:var(--surface);
+  border-top:1.5px dashed var(--border);
+  display:flex;
+  justify-content:space-around;
+  padding:6px 2px max(6px, env(safe-area-inset-bottom));
+  z-index:200;
+}
+.bottom-nav .nav-item{
+  flex-direction:column;
+  gap:2px;
+  padding:6px 4px;
+  font-size:10px;
+  border-radius:14px;
+  flex:1;
+}
+.bottom-nav .nav-item .ic{ font-size:22px; }
+.bottom-nav .nav-item.active{
+  background:none;
+  color:var(--pink-deep);
+  box-shadow:none;
+}
+.bottom-nav .nav-item.active .ic{
+  transform:scale(1.1);
+}
+.dot{
+  width:5px; height:5px; border-radius:50%;
+  background:var(--pink-deep);
+  margin-top:1px;
+}
+
+/* --- 主內容 --- */
+main{
+  flex:1;
+  min-width:0;
+  padding:18px 16px 90px;
+  max-width:720px;
+  margin:0 auto;
+  width:100%;
+}
+
+@media (min-width: 880px){
+  .sidebar{ display:flex; }
+  .bottom-nav{ display:none; }
+  main{ padding:36px 40px 60px; max-width:760px; }
+}
+
+/* --- 頂部列(手機) --- */
+.topbar{
+  display:flex; align-items:center; gap:10px;
+  padding:6px 2px 18px;
+}
+.topbar .emoji{ font-size:26px; }
+.topbar .title{ font-weight:800; font-size:18px; }
+.topbar .sub{ font-size:11px; color:var(--ink-faint); }
+@media (min-width:880px){ .topbar{ display:none; } }
+
+/* ============================================================
+   共用元件 Components
+   ============================================================ */
+.card{
+  background:var(--surface);
+  border-radius:var(--radius-lg);
+  box-shadow:var(--shadow);
+  padding:20px;
+  border:1px solid var(--border);
+}
+
+.section-title{
+  display:flex; align-items:center; gap:8px;
+  margin:0 0 16px;
+  font-size:18px; font-weight:800; color:var(--ink);
+}
+.section-title .ic{ font-size:20px; }
+
+.btn{
+  display:inline-flex; align-items:center; gap:6px;
+  border-radius:var(--radius-pill);
+  border:1.5px solid var(--border);
+  background:var(--bg);
+  color:var(--ink-soft);
+  font-weight:700;
+  font-size:13px;
+  padding:10px 18px;
+  cursor:pointer;
+  transition:transform .12s, box-shadow .12s;
+}
+.btn:active{ transform:scale(0.96); }
+.btn-primary{
+  background:linear-gradient(135deg, var(--pink) 0%, #FFC9D6 100%);
+  border-color:transparent;
+  color:#fff;
+  box-shadow:0 4px 14px rgba(245,144,168,0.35);
+}
+.btn-ghost{ background:transparent; border-color:transparent; }
+.btn-sm{ padding:6px 14px; font-size:12px; }
+.btn-danger{ background:#FFE3E0; border-color:#FFC9C2; color:#C2554A; }
+
+.fab{
+  position:fixed; right:18px; bottom:84px;
+  width:54px; height:54px; border-radius:50%;
+  background:linear-gradient(135deg, var(--pink) 0%, #FFC9D6 100%);
+  color:#fff; font-size:26px;
+  display:flex; align-items:center; justify-content:center;
+  border:none; cursor:pointer;
+  box-shadow:0 6px 18px rgba(245,144,168,0.45);
+  z-index:150;
+}
+@media (min-width:880px){ .fab{ bottom:40px; right:40px; } }
+
+.field{ margin-bottom:14px; }
+.field label{
+  display:block; font-size:12px; font-weight:700;
+  color:var(--ink-soft); margin-bottom:5px;
+}
+.field input, .field textarea, .field select{
+  width:100%;
+  border:1.5px solid var(--border);
+  border-radius:var(--radius-sm);
+  padding:10px 13px;
+  background:var(--bg);
+  outline:none;
+  transition:border-color .15s, box-shadow .15s;
+}
+.field textarea{ resize:vertical; min-height:64px; font-family:inherit; }
+.field input:focus, .field textarea:focus, .field select:focus{
+  border-color:var(--pink-deep);
+  box-shadow:0 0 0 4px rgba(255,181,197,0.25);
+}
+
+.tag{
+  display:inline-flex; align-items:center;
+  border-radius:var(--radius-pill);
+  font-size:11px; font-weight:800;
+  padding:3px 10px;
+  letter-spacing:.2px;
+}
+.tag-pink{ background:#FFE4EA; color:#C2517A; }
+.tag-cream{ background:#FFF6D6; color:#8A6E1A; }
+.tag-mint{ background:#DCF3E9; color:#2F7A5C; }
+.tag-sky{ background:#DCEFFC; color:#2D6FA0; }
+.tag-gray{ background:#EFE8E0; color:#8A7770; }
+
+.chip-row{ display:flex; gap:8px; flex-wrap:wrap; }
+.chip{
+  border-radius:var(--radius-pill);
+  border:1.5px solid var(--border);
+  background:var(--surface);
+  padding:6px 14px;
+  font-size:12px; font-weight:700;
+  color:var(--ink-soft);
+  cursor:pointer;
+}
+.chip.active{
+  background:var(--pink);
+  border-color:var(--pink);
+  color:#fff;
+}
+
+.empty-state{
+  text-align:center;
+  padding:40px 20px;
+  color:var(--ink-faint);
+}
+.empty-state .ic{ font-size:40px; margin-bottom:10px; }
+.empty-state .msg{ font-size:13px; }
+
+/* Modal */
+.modal-backdrop{
+  position:fixed; inset:0; background:rgba(93,74,68,0.35);
+  display:flex; align-items:flex-end; justify-content:center;
+  z-index:300; backdrop-filter:blur(2px);
+}
+@media (min-width:880px){ .modal-backdrop{ align-items:center; } }
+.modal{
+  background:var(--surface);
+  border-radius:28px 28px 0 0;
+  width:100%; max-width:560px;
+  max-height:88vh; overflow-y:auto;
+  padding:24px 22px max(24px, env(safe-area-inset-bottom));
+  box-shadow:0 -8px 30px rgba(93,74,68,0.18);
+}
+@media (min-width:880px){
+  .modal{ border-radius:28px; max-height:80vh; padding:28px; }
+}
+.modal-head{
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:18px;
+}
+.modal-head h3{ margin:0; font-size:18px; font-weight:800; }
+.modal-close{
+  background:var(--bg); border:none; border-radius:50%;
+  width:32px; height:32px; font-size:16px; color:var(--ink-soft);
+  cursor:pointer;
+}
+.modal-actions{ display:flex; gap:10px; margin-top:18px; }
+
+.row2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+::-webkit-scrollbar{ width:8px; }
+::-webkit-scrollbar-thumb{ background:var(--border); border-radius:8px; }
+
+.toast{
+  position:fixed; bottom:90px; left:50%; transform:translateX(-50%);
+  background:var(--ink); color:#fff; padding:10px 20px;
+  border-radius:var(--radius-pill); font-size:13px; font-weight:700;
+  z-index:400; box-shadow:var(--shadow);
+  opacity:0; transition:opacity .25s, bottom .25s;
+  pointer-events:none;
+}
+.toast.show{ opacity:1; bottom:100px; }
+@media (min-width:880px){ .toast{ bottom:40px; } .toast.show{ bottom:50px; } }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+<div id="toast" class="toast"></div>
+
+<script>
+/* ============================================================
+   資料層 Data Layer
+   ============================================================ */
+const STORAGE_KEY = 'yaoyao_growth_db_v1';
+
+const DEFAULT_DB = {
+  child: {
+    name: '垚垚',
+    nickname: '',
+    birthdate: '',
+    bloodType: '',
+    photo: null
+  },
+  milestones: [],      // {id,date,icon,title,desc,category,sourceType,sourceId}
+  earlyPrograms: [],   // {id,type,therapist,frequency,startDate,status,notes}
+  earlyLogs: [],        // {id,date,category(物理/職能/語言),content,milestoneId}
+  people: [],            // {id,name,role,relation,emoji,note}
+  photos: [],             // {id,dataUrl,caption,date,tag,milestoneId}
+  vaccines: [],         // {id,name,date,done}
+  visits: [],              // {id,date,hospital,department,doctor,note,earlyLogId}
+  growth: [],             // {id,date,height,weight}
+  outings: [],            // {id,location,date,peopleIds[],note,photos[]}
+  meta: { version: 1, lastModified: null }
+};
+
+function loadDB(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return structuredClone(DEFAULT_DB);
+    const parsed = JSON.parse(raw);
+    // merge to ensure new fields exist when schema grows
+    return Object.assign(structuredClone(DEFAULT_DB), parsed);
+  }catch(e){
+    console.error('讀取資料庫失敗', e);
+    return structuredClone(DEFAULT_DB);
+  }
+}
+
+function saveDB(db){
+  db.meta.lastModified = new Date().toISOString();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+}
+
+let DB = loadDB();
+
+function uid(){
+  return Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(()=> t.classList.remove('show'), 2200);
+}
+
+/* 匯出 / 匯入 備份 */
+function exportBackup(){
+  const blob = new Blob([JSON.stringify(DB, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const dateStr = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `垚垚成長記錄_備份_${dateStr}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  showToast('備份已下載 📦');
+}
+
+function importBackup(file){
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try{
+      const parsed = JSON.parse(e.target.result);
+      if(!parsed || typeof parsed !== 'object') throw new Error('格式錯誤');
+      DB = Object.assign(structuredClone(DEFAULT_DB), parsed);
+      saveDB(DB);
+      showToast('資料已還原 🌸');
+      render();
+    }catch(err){
+      alert('檔案格式不正確，無法匯入。');
+    }
+  };
+  reader.readAsText(file);
+}
+
+/* ============================================================
+   路由 / 全域狀態
+   ============================================================ */
+const TABS = [
+  { id:'home',     label:'首頁',   icon:'🏠' },
+  { id:'timeline', label:'大事記', icon:'⭐' },
+  { id:'early',    label:'早療',   icon:'🌱' },
+  { id:'people',   label:'人際圈', icon:'👥' },
+  { id:'photos',   label:'相簿',   icon:'📸' },
+  { id:'medical',  label:'醫療',   icon:'🩺' },
+  { id:'outings',  label:'出遊',   icon:'🧳' },
+];
+
+let currentTab = 'home';
+
+function setTab(id){
+  currentTab = id;
+  render();
+  window.scrollTo(0,0);
+}
+
+/* ============================================================
+   殼層渲染 Shell Render
+   ============================================================ */
+function navItemsHTML(activeId, isBottom){
+  return TABS.map(t => `
+    <button class="nav-item ${t.id===activeId?'active':''}" onclick="setTab('${t.id}')">
+      <span class="ic">${t.icon}</span>
+      <span>${t.label}</span>
+      ${isBottom && t.id===activeId ? '<span class="dot"></span>' : ''}
+    </button>
+  `).join('');
+}
+
+function renderShell(){
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <span class="emoji">🐰</span>
+        <div>
+          <div class="title">${DB.child.name || '垚垚'}的<br/>成長故事書</div>
+        </div>
+      </div>
+      ${navItemsHTML(currentTab, false)}
+      <div style="flex:1"></div>
+      <button class="btn btn-sm" style="width:100%; justify-content:center; margin-bottom:8px;" onclick="exportBackup()">📦 匯出備份</button>
+      <label class="btn btn-sm" style="width:100%; justify-content:center; cursor:pointer;">
+        📂 匯入備份
+        <input type="file" accept="application/json" style="display:none" onchange="importBackup(this.files[0])">
+      </label>
+    </aside>
+    <main id="main">
+      <div class="topbar">
+        <span class="emoji">🐰</span>
+        <div>
+          <div class="title">${DB.child.name || '垚垚'}的成長故事書</div>
+          <div class="sub">專屬回憶資料庫</div>
+        </div>
+      </div>
+      <div id="page"></div>
+    </main>
+    <nav class="bottom-nav">
+      ${navItemsHTML(currentTab, true)}
+    </nav>
+  `;
+}
+
+/* ============================================================
+   頁面渲染 (各模組將陸續掛上 window.PAGES)
+   ============================================================ */
+window.PAGES = {};
+
+function render(){
+  renderShell();
+  const page = document.getElementById('page');
+  const renderer = window.PAGES[currentTab];
+  if(renderer){
+    page.innerHTML = renderer();
+    if(window.AFTER_RENDER && window.AFTER_RENDER[currentTab]){
+      window.AFTER_RENDER[currentTab]();
+    }
+  } else {
+    page.innerHTML = `<div class="empty-state"><div class="ic">🚧</div><div class="msg">這個區塊還在蓋造中…</div></div>`;
+  }
+}
+
+/* ============================================================
+   共用小工具 Helpers
+   ============================================================ */
+function fmtDate(d){
+  if(!d) return '';
+  return d.replaceAll('-', '/');
+}
+
+function ageString(birthdate){
+  if(!birthdate) return '尚未填寫生日';
+  const b = new Date(birthdate);
+  const n = new Date();
+  if(isNaN(b.getTime())) return '';
+  let y = n.getFullYear() - b.getFullYear();
+  let m = n.getMonth() - b.getMonth();
+  let d = n.getDate() - b.getDate();
+  if(d < 0) m--;
+  if(m < 0){ y--; m += 12; }
+  if(y > 0) return `${y}歲${m}個月`;
+  return `${m}個月大`;
+}
+
+function daysAgo(dateStr){
+  if(!dateStr) return Infinity;
+  const d = new Date(dateStr);
+  if(isNaN(d.getTime())) return Infinity;
+  const diff = (new Date().setHours(0,0,0,0) - d.setHours(0,0,0,0)) / 86400000;
+  return diff;
+}
+
+function escapeHtml(str){
+  if(str===undefined||str===null) return '';
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function compressImage(file, maxDim, quality){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if(width > height && width > maxDim){
+          height = Math.round(height * (maxDim/width));
+          width = maxDim;
+        } else if(height >= width && height > maxDim){
+          width = Math.round(width * (maxDim/height));
+          height = maxDim;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+const MILESTONE_CATEGORY_TAG = {
+  '成長':'tag-pink', '語言':'tag-sky', '早療':'tag-mint',
+  '旅遊':'tag-cream', '學習':'tag-sky', '其他':'tag-gray'
+};
+
+/* 加入大事記 (供其他模組呼叫，例如早療日誌/相簿 勾選同步) */
+function addMilestone({date, icon, title, desc, category, sourceType, sourceId}){
+  const m = { id: uid(), date, icon: icon||'⭐', title, desc: desc||'', category: category||'成長', sourceType: sourceType||null, sourceId: sourceId||null };
+  DB.milestones.push(m);
+  saveDB(DB);
+  return m;
+}
+
+/* ============================================================
+   首頁 Home
+   ============================================================ */
+function buildDigest(days){
+  const items = [];
+  const push = (date, icon, text, tab) => {
+    if(daysAgo(date) <= days && daysAgo(date) >= 0){
+      items.push({date, icon, text, tab});
+    }
+  };
+  DB.milestones.forEach(m => push(m.date, m.icon||'⭐', `大事記：${m.title}`, 'timeline'));
+  DB.earlyLogs.forEach(l => push(l.date, l.category==='語言'?'🗣️':l.category==='職能'?'🤲':'🏃', `早療日誌(${l.category})：${l.content}`, 'early'));
+  DB.photos.forEach(p => push(p.date, '📸', `新增照片：${p.caption||'(無說明)'}`, 'photos'));
+  DB.visits.forEach(v => push(v.date, '🩺', `就診：${v.hospital||''} ${v.department||''}`, 'medical'));
+  DB.growth.forEach(g => push(g.date, '📏', `量身高體重：${g.height||'-'}cm / ${g.weight||'-'}kg`, 'medical'));
+  DB.outings.forEach(o => push(o.date, '🧳', `出遊：${o.location}`, 'outings'));
+  DB.vaccines.filter(v=>v.done).forEach(v => push(v.date, '💉', `接種疫苗：${v.name}`, 'medical'));
+  items.sort((a,b)=> b.date.localeCompare(a.date));
+  return items;
+}
+
+window.PAGES.home = function(){
+  const c = DB.child;
+  const weekItems = buildDigest(7);
+  const monthItems = buildDigest(30).slice(0, 12);
+
+  const stats = [
+    { n: DB.milestones.length, label:'大事記', icon:'⭐', bg:'#FFE4EA' },
+    { n: DB.earlyLogs.length, label:'早療日誌', icon:'🌱', bg:'#DCF3E9' },
+    { n: DB.people.length, label:'重要的人', icon:'👥', bg:'#DCEFFC' },
+    { n: DB.photos.length, label:'張照片', icon:'📸', bg:'#FFF6D6' },
+    { n: DB.visits.length, label:'就診紀錄', icon:'🩺', bg:'#DCF3E9' },
+    { n: DB.outings.length, label:'次出遊', icon:'🧳', bg:'#DCEFFC' },
+  ];
+
+  return `
+    <div class="card" style="background:linear-gradient(135deg, #FFE9EE 0%, #FFF6D6 100%); border:none; margin-bottom:18px;">
+      <div style="display:flex; align-items:center; gap:18px;">
+        <div style="width:74px; height:74px; border-radius:50%; background:${c.photo? 'transparent':'linear-gradient(135deg, var(--pink), var(--cream))'}; display:flex; align-items:center; justify-content:center; font-size:34px; border:3px solid #fff; box-shadow:var(--shadow-sm); overflow:hidden; flex-shrink:0;">
+          ${c.photo ? `<img src="${c.photo}" style="width:100%; height:100%; object-fit:cover;">` : '🐰'}
+        </div>
+        <div>
+          <div style="font-size:24px; font-weight:800; color:var(--ink);">${escapeHtml(c.name)||'垚垚'} ${c.nickname?`<span style="font-size:13px; color:var(--ink-soft); font-weight:600;">「${escapeHtml(c.nickname)}」</span>`:''}</div>
+          <div class="chip-row" style="margin-top:8px;">
+            <span class="tag tag-pink">🎀 ${ageString(c.birthdate)}</span>
+            ${c.bloodType?`<span class="tag tag-cream">🩸 ${escapeHtml(c.bloodType)}型</span>`:''}
+          </div>
+        </div>
+      </div>
+      ${c.birthdate?`<div style="margin-top:14px; font-size:12px; color:var(--ink-soft);">🎂 生日：${fmtDate(c.birthdate)}</div>`:''}
+      <button class="btn btn-sm" style="margin-top:12px; background:rgba(255,255,255,0.7);" onclick="openChildEditModal()">✏️ 編輯基本資料</button>
+    </div>
+
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:20px;">
+      ${stats.map(s=>`
+        <div class="card" style="background:${s.bg}; border:none; text-align:center; padding:16px 6px;">
+          <div style="font-size:20px;">${s.icon}</div>
+          <div style="font-size:22px; font-weight:800; color:var(--ink); line-height:1.3;">${s.n}</div>
+          <div style="font-size:10px; color:var(--ink-soft); font-weight:700;">${s.label}</div>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div class="section-title"><span class="ic">📅</span>這七天發生的事</div>
+      ${weekItems.length===0 ? `<div class="empty-state" style="padding:18px;"><div class="ic">🌤️</div><div class="msg">這七天還沒有新增記錄</div></div>` :
+        weekItems.map(it=>`
+          <div style="display:flex; gap:10px; padding:9px 0; border-bottom:1px dashed var(--border); cursor:pointer;" onclick="setTab('${it.tab}')">
+            <span style="font-size:18px;">${it.icon}</span>
+            <div style="flex:1;">
+              <div style="font-size:13px; color:var(--ink); font-weight:600;">${escapeHtml(it.text)}</div>
+              <div style="font-size:11px; color:var(--ink-faint);">${fmtDate(it.date)}</div>
+            </div>
+          </div>
+        `).join('')
+      }
+    </div>
+
+    <div class="card">
+      <div class="section-title"><span class="ic">🗓️</span>這個月的回顧</div>
+      ${monthItems.length===0 ? `<div class="empty-state" style="padding:18px;"><div class="ic">🌱</div><div class="msg">這個月還沒有新增記錄</div></div>` :
+        monthItems.map(it=>`
+          <div style="display:flex; gap:10px; padding:9px 0; border-bottom:1px dashed var(--border); cursor:pointer;" onclick="setTab('${it.tab}')">
+            <span style="font-size:18px;">${it.icon}</span>
+            <div style="flex:1;">
+              <div style="font-size:13px; color:var(--ink); font-weight:600;">${escapeHtml(it.text)}</div>
+              <div style="font-size:11px; color:var(--ink-faint);">${fmtDate(it.date)}</div>
+            </div>
+          </div>
+        `).join('')
+      }
+    </div>
+  `;
+};
+
+function openChildEditModal(){
+  const c = DB.child;
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="modal">
+      <div class="modal-head"><h3>✏️ 編輯基本資料</h3><button class="modal-close" onclick="this.closest('.modal-backdrop').remove()">✕</button></div>
+      <div class="field"><label>名字</label><input id="f-name" value="${escapeHtml(c.name)}"></div>
+      <div class="field"><label>暱稱</label><input id="f-nickname" value="${escapeHtml(c.nickname)}"></div>
+      <div class="row2">
+        <div class="field"><label>生日</label><input id="f-birthdate" type="date" value="${c.birthdate||''}"></div>
+        <div class="field"><label>血型</label><input id="f-blood" value="${escapeHtml(c.bloodType)}" placeholder="A/B/O/AB"></div>
+      </div>
+      <div class="field">
+        <label>照片</label>
+        <input id="f-photo" type="file" accept="image/*">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" style="flex:1; justify-content:center;" onclick="saveChildEdit()">儲存</button>
+        <button class="btn" style="flex:1; justify-content:center;" onclick="this.closest('.modal-backdrop').remove()">取消</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+}
+
+async function saveChildEdit(){
+  const name = document.getElementById('f-name').value.trim();
+  const nickname = document.getElementById('f-nickname').value.trim();
+  const birthdate = document.getElementById('f-birthdate').value;
+  const bloodType = document.getElementById('f-blood').value.trim();
+  const fileInput = document.getElementById('f-photo');
+
+  DB.child.name = name || '垚垚';
+  DB.child.nickname = nickname;
+  DB.child.birthdate = birthdate;
+  DB.child.bloodType = bloodType;
+
+  if(fileInput.files && fileInput.files[0]){
+    DB.child.photo = await compressImage(fileInput.files[0], 400, 0.85);
+  }
+
+  saveDB(DB);
+  document.querySelector('.modal-backdrop').remove();
+  showToast('已更新基本資料 🌸');
+  render();
+}
+
+/* ============================================================
+   大事記 Timeline
+   ============================================================ */
+const MILESTONE_ICONS = ['⭐','🌸','😊','🦷','👣','💬','🎂','🎓','🏆','🌈','🎈','🥇'];
+
+window.PAGES.timeline = function(){
+  const sorted = [...DB.milestones].sort((a,b)=> b.date.localeCompare(a.date));
+  return `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+      <div class="section-title" style="margin:0;"><span class="ic">⭐</span>成長大事記</div>
+      <button class="btn btn-primary btn-sm" onclick="openMilestoneModal()">+ 新增</button>
+    </div>
+
+    ${sorted.length===0 ? `
+      <div class="empty-state">
+        <div class="ic">🌱</div>
+        <div class="msg">還沒有大事記，新增第一筆吧</div>
+      </div>
+    ` : `
+      <div style="position:relative; padding-left:6px;">
+        <div style="position:absolute; left:25px; top:6px; bottom:6px; width:3px; background:linear-gradient(to bottom, var(--pink), var(--mint), var(--sky)); border-radius:6px; opacity:0.5;"></div>
+        ${sorted.map(m => `
+          <div style="display:flex; gap:14px; margin-bottom:18px; position:relative;">
+            <div style="width:44px; height:44px; border-radius:50%; background:var(--surface); border:2.5px solid var(--pink-deep); display:flex; align-items:center; justify-content:center; font-size:21px; flex-shrink:0; z-index:1; box-shadow:var(--shadow-sm);">${m.icon}</div>
+            <div class="card" style="flex:1; padding:16px 18px;">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+                <div style="flex:1;">
+                  <div style="font-weight:800; font-size:15px; color:var(--ink);">${escapeHtml(m.title)}</div>
+                  <div style="font-size:11px; color:var(--ink-faint); margin:2px 0 8px;">${fmtDate(m.date)}</div>
+                  ${m.desc ? `<div style="font-size:13px; color:var(--ink-soft); line-height:1.7; margin-bottom:8px;">${escapeHtml(m.desc)}</div>` : ''}
+                  <div class="chip-row">
+                    <span class="tag ${MILESTONE_CATEGORY_TAG[m.category]||'tag-gray'}">${m.category}</span>
+                    ${m.sourceType ? `<span class="tag tag-gray">來自${m.sourceType==='early'?'早療日誌':m.sourceType==='photo'?'相簿':''}</span>` : ''}
+                  </div>
+                </div>
+                <div style="display:flex; gap:4px;">
+                  <button class="modal-close" style="width:26px;height:26px;font-size:13px;" onclick="openMilestoneModal('${m.id}')">✏️</button>
+                  <button class="modal-close" style="width:26px;height:26px;font-size:13px;" onclick="deleteMilestone('${m.id}')">🗑️</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `}
+  `;
+};
+
+function openMilestoneModal(id){
+  const editing = id ? DB.milestones.find(m=>m.id===id) : null;
+  const cats = ['成長','語言','早療','旅遊','學習','其他'];
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="modal">
+      <div class="modal-head"><h3>${editing?'✏️ 編輯大事記':'⭐ 新增大事記'}</h3><button class="modal-close" onclick="this.closest('.modal-backdrop').remove()">✕</button></div>
+      <div class="row2">
+        <div class="field"><label>日期</label><input id="m-date" type="date" value="${editing?editing.date:''}"></div>
+        <div class="field"><label>圖示</label>
+          <select id="m-icon">${MILESTONE_ICONS.map(ic=>`<option value="${ic}" ${editing&&editing.icon===ic?'selected':''}>${ic}</option>`).join('')}</select>
+        </div>
+      </div>
+      <div class="field"><label>標題</label><input id="m-title" value="${editing?escapeHtml(editing.title):''}" placeholder="第一次…"></div>
+      <div class="field"><label>描述</label><textarea id="m-desc" placeholder="記錄這個珍貴時刻…">${editing?escapeHtml(editing.desc):''}</textarea></div>
+      <div class="field">
+        <label>類別</label>
+        <div class="chip-row" id="m-cat-row">
+          ${cats.map(c=>`<span class="chip ${editing&&editing.category===c||(!editing&&c==='成長')?'active':''}" data-cat="${c}" onclick="selectChip(this,'m-cat-row')">${c}</span>`).join('')}
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" style="flex:1; justify-content:center;" onclick="saveMilestone('${editing?editing.id:''}')">儲存</button>
+        <button class="btn" style="flex:1; justify-content:center;" onclick="this.closest('.modal-backdrop').remove()">取消</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+}
+
+function selectChip(el, rowId){
+  document.getElementById(rowId).querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function saveMilestone(id){
+  const date = document.getElementById('m-date').value;
+  const icon = document.getElementById('m-icon').value;
+  const title = document.getElementById('m-title').value.trim();
+  const desc = document.getElementById('m-desc').value.trim();
+  const cat = document.querySelector('#m-cat-row .chip.active');
+  const category = cat ? cat.dataset.cat : '成長';
+
+  if(!date || !title){ alert('請填寫日期和標題'); return; }
+
+  if(id){
+    const m = DB.milestones.find(x=>x.id===id);
+    Object.assign(m, {date, icon, title, desc, category});
+  } else {
+    addMilestone({date, icon, title, desc, category});
+  }
+  saveDB(DB);
+  document.querySelector('.modal-backdrop').remove();
+  showToast('大事記已儲存 ⭐');
+  render();
+}
+
+function deleteMilestone(id){
+  if(!confirm('確定要刪除這筆大事記嗎？')) return;
+  DB.milestones = DB.milestones.filter(m=>m.id!==id);
+  saveDB(DB);
+  showToast('已刪除');
+  render();
+}
+
+document.addEventListener('DOMContentLoaded', render);
+</script>
+</body>
+</html>
