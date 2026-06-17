@@ -326,10 +326,47 @@ main{
 </head>
 <body>
 
-<div id="app"></div>
+<div id="lock-screen" style="position:fixed; inset:0; background:linear-gradient(135deg,#FFE9EE 0%,#FFF6D6 100%); display:flex; align-items:center; justify-content:center; z-index:9999; padding:20px;">
+  <div style="background:#fff; border-radius:24px; padding:36px 28px; max-width:340px; width:100%; box-shadow:0 8px 24px rgba(93,74,68,0.15); text-align:center;">
+    <div style="font-size:42px; margin-bottom:6px;">🐰🔒</div>
+    <div style="font-family:'Huninn',sans-serif; font-size:18px; font-weight:800; color:#5D4A44; margin-bottom:18px;">垚垚的成長故事書</div>
+    <input id="lock-input" type="password" placeholder="請輸入密碼" style="width:100%; box-sizing:border-box; border:1.5px solid #F1E4D8; border-radius:12px; padding:12px 14px; font-size:15px; outline:none; margin-bottom:12px; text-align:center;">
+    <div id="lock-error" style="color:#C2554A; font-size:12px; height:16px; margin-bottom:8px;"></div>
+    <button onclick="checkLockPassword()" style="width:100%; border:none; border-radius:999px; padding:12px; background:linear-gradient(135deg,#FFB5C5,#FFC9D6); color:#fff; font-weight:800; font-size:15px; cursor:pointer;">進入故事書</button>
+  </div>
+</div>
+
+<div id="app" style="display:none;"></div>
 <div id="toast" class="toast"></div>
 
 <script>
+/* ============================================================
+   簡易密碼鎖 (僅供阻擋路過誤入，非高強度安全機制)
+   ============================================================ */
+const SITE_PASSWORD = 'rgqsdh159';
+const LOCK_SESSION_KEY = 'yaoyao_unlocked';
+
+function checkLockPassword(){
+  const val = document.getElementById('lock-input').value;
+  if(val === SITE_PASSWORD){
+    sessionStorage.setItem(LOCK_SESSION_KEY, '1');
+    document.getElementById('lock-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+  } else {
+    document.getElementById('lock-error').textContent = '密碼不正確，再試一次';
+    document.getElementById('lock-input').value = '';
+  }
+}
+
+document.getElementById('lock-input').addEventListener('keydown', (e) => {
+  if(e.key === 'Enter') checkLockPassword();
+});
+
+if(sessionStorage.getItem(LOCK_SESSION_KEY) === '1'){
+  document.getElementById('lock-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+}
+
 /* ============================================================
    資料層 Data Layer
    ============================================================ */
