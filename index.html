@@ -502,6 +502,7 @@ function renderShell(){
       </div>
       ${navItemsHTML(currentTab, false)}
       <div style="flex:1"></div>
+      <button class="btn btn-sm" style="width:100%; justify-content:center; margin-bottom:8px;" onclick="openSearchModal()">🔍 搜尋紀錄</button>
       <button class="btn btn-sm" style="width:100%; justify-content:center; margin-bottom:8px;" onclick="exportBackup()">📦 匯出備份</button>
       <label class="btn btn-sm" style="width:100%; justify-content:center; cursor:pointer;">
         📂 匯入備份
@@ -511,10 +512,11 @@ function renderShell(){
     <main id="main">
       <div class="topbar">
         <span class="emoji">🐰</span>
-        <div>
+        <div style="flex:1;">
           <div class="title">${DB.child.name || '垚垚'}的成長故事書</div>
           <div class="sub">專屬回憶資料庫</div>
         </div>
+        <button class="modal-close" style="width:36px;height:36px;font-size:16px;" onclick="openSearchModal()">🔍</button>
       </div>
       <div id="page"></div>
     </main>
@@ -874,6 +876,943 @@ function deleteMilestone(id){
   saveDB(DB);
   showToast('已刪除');
   render();
+}
+
+/* ============================================================
+   早療 Early Intervention
+   ============================================================ */
+const EARLY_TYPE_ICON = { '物理':'🏃', '職能':'🤲', '語言':'🗣️' };
+const EARLY_TYPE_TAG = { '物理':'tag-sky', '職能':'tag-mint', '語言':'tag-pink' };
+
+window.PAGES.early = function(){
+  const programs = DB.earlyPrograms;
+  const logs = [...DB.earlyLogs].sort((a,b)=> b.date.localeCompare(a.date));
+  const activeFilter = window.__earlyLogFilter || '全部';
+  const filters = ['全部','物理','職能','語言'];
+  const filteredLogs = activeFilter==='全部' ? logs : logs.filter(l=>l.category===activeFilter);
+
+  return `
+    <div class="section-title"><span class="ic">🌱</span>早療資訊</div>
+
+    <div class="card" style="background:#EAF6F0; border:1px solid #CDE9DC; margin-bottom:20px;">
+      <div style="font-size:12.5px; color:var(--ink-soft); line-height:1.8;">
+        💡 這裡記錄垚垚的早期療育課程與每一次的小小進步。日誌會累積成一條成長軌跡，幫你快速看見她真正走了多遠。
+      </div>
+    </div>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <div style="font-weight:800; font-size:15px; color:var(--ink);">📋 療育課程</div>
+      <button class="btn btn-primary btn-sm" onclick="openProgramModal()">+ 新增課程</button>
+    </div>
+
+    ${programs.length===0 ? `<div class="empty-state" style="padding:24px;"><div class="ic">🌿</div><div class="msg">還沒有新增療育課程</div></div>` :
+      programs.map(p => `
+        <div class="card" style="margin-bottom:12px; padding:16px 18px; position:relative;">
+          <div style="position:absolute; top:-6px; left:18px; background:${p.type==='語言'?'#FFE4EA':p.type==='職能'?'#DCF3E9':'#DCEFFC'}; padding:3px 12px; border-radius:6px; font-size:10px; font-weight:800; color:var(--ink-soft); transform:rotate(-2deg); box-shadow:0 2px 4px rgba(0,0,0,0.06);">${p.therapist||'治療師未填'}</div>
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-top:10px;">
+            <div style="flex:1;">
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                <span style="font-size:22px;">${EARLY_TYPE_ICON[p.type]||'🌿'}</span>
+                <div style="font-weight:800; font-size:15px; color:var(--ink);">${escapeHtml(p.type)}</div>
+              </div>
+              <div class="chip-row" style="margin-bottom:8px;">
+                <span class="tag tag-gray">📅 ${escapeHtml(p.frequency)||'-'}</span>
+                ${p.startDate?`<span class="tag tag-cream">開始 ${fmtDate(p.startDate)}</span>`:''}
+                <span class="tag ${p.status==='進行中'?'tag-mint':'tag-gray'}">${p.status==='進行中'?'🟢':'⚪'} ${p.status}</span>
+              </div>
+              ${p.notes?`<div style="font-size:12.5px; color:var(--ink-soft); line-height:1.6;">📝 ${escapeHtml(p.notes)}</div>`:''}
+            </div>
+            <div style="display:flex; gap:4px;">
+              <button class="modal-close" style="width:26px;height:26px;font-size:13px;" onclick="openProgramModal('${p.id}')">✏️</button>
+              <button class="modal-close" style="width:26px;height:26px;font-size:13px;" onclick="deleteProgram('${p.id}')">🗑️</button>
+            </div>
+          </div>
+        </div>
+      `).join('')
+    }
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin:26px 0 12px;">
+      <div style="font-weight:800; font-size:15px; color:var(--ink);">📖 進展日誌</div>
+      <button class="btn btn-primary btn-sm" onclick="openLogModal()">+ 新增日誌</button>
+    </div>
+
+    <div class="chip-row" style="margin-bottom:14px;">
+      ${filters.map(f=>`<span class="chip ${activeFilter===f?'active':''}" onclick="setEarlyLogFilter('${f}')">${f}</span>`).join('')}
+    </div>
+
+    ${filteredLogs.length===0 ? `<div class="empty-state" style="padding:24px;"><div class="ic">📝</div><div class="msg">還沒有進展日誌，記下今天的小進步吧</div></div>` :
+      `<div style="position:relative;">
+        ${filteredLogs.map(l => `
+          <div style="display:flex; gap:12px; margin-bottom:14px;">
+            <div style="width:64px; flex-shrink:0; text-align:right; padding-top:4px;">
+              <div style="font-size:11px; color:var(--ink-faint); font-weight:700;">${fmtDate(l.date).slice(5)}</div>
+              <div style="font-size:9px; color:var(--ink-faint);">${fmtDate(l.date).slice(0,4)}</div>
+            </div>
+            <div class="card" style="flex:1; padding:13px 16px;">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+                <div style="flex:1;">
+                  <div class="chip-row" style="margin-bottom:6px;">
+                    <span class="tag ${EARLY_TYPE_TAG[l.category]}">${EARLY_TYPE_ICON[l.category]} ${l.category}</span>
+                    ${l.milestoneId ? `<span class="tag tag-pink">⭐ 已收錄大事記</span>` : ''}
+                  </div>
+                  <div style="font-size:13.5px; color:var(--ink); line-height:1.6;">${escapeHtml(l.content)}</div>
+                </div>
+                <div style="display:flex; gap:4px;">
+                  <button class="modal-close" style="width:24px;height:24px;font-size:12px;" onclick="openLogModal('${l.id}')">✏️</button>
+                  <button class="modal-close" style="width:24px;height:24px;font-size:12px;" onclick="deleteLog('${l.id}')">🗑️</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      </div>`
+    }
+  `;
+};
+
+function setEarlyLogFilter(f){
+  window.__earlyLogFilter = f;
+  render();
+}
+
+/* --- 療育課程 modal --- */
+function openProgramModal(id){
+  const editing = id ? DB.earlyPrograms.find(p=>p.id===id) : null;
+  const types = ['物理','職能','語言'];
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="modal">
+      <div class="modal-head"><h3>${editing?'✏️ 編輯課程':'🌱 新增療育課程'}</h3><button class="modal-close" onclick="this.closest('.modal-backdrop').remove()">✕</button></div>
+      <div class="field">
+        <label>類型</label>
+        <div class="chip-row" id="p-type-row">
+          ${types.map(t=>`<span class="chip ${editing&&editing.type===t||(!editing&&t==='語言')?'active':''}" data-type="${t}" onclick="selectChip(this,'p-type-row')">${EARLY_TYPE_ICON[t]} ${t}</span>`).join('')}
+        </div>
+      </div>
+      <div class="field"><label>治療師</label><input id="p-therapist" value="${editing?escapeHtml(editing.therapist):''}"></div>
+      <div class="row2">
+        <div class="field"><label>頻率</label><input id="p-frequency" value="${editing?escapeHtml(editing.frequency):''}" placeholder="每週一次"></div>
+        <div class="field"><label>開始日期</label><input id="p-startdate" type="date" value="${editing?editing.startDate:''}"></div>
+      </div>
+      <div class="field">
+        <label>狀態</label>
+        <div class="chip-row" id="p-status-row">
+          <span class="chip ${!editing||editing.status==='進行中'?'active':''}" data-status="進行中" onclick="selectChip(this,'p-status-row')">🟢 進行中</span>
+          <span class="chip ${editing&&editing.status==='已結束'?'active':''}" data-status="已結束" onclick="selectChip(this,'p-status-row')">⚪ 已結束</span>
+        </div>
+      </div>
+      <div class="field"><label>備註</label><textarea id="p-notes">${editing?escapeHtml(editing.notes):''}</textarea></div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" style="flex:1; justify-content:center;" onclick="saveProgram('${editing?editing.id:''}')">儲存</button>
+        <button class="btn" style="flex:1; justify-content:center;" onclick="this.closest('.modal-backdrop').remove()">取消</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+}
+
+function saveProgram(id){
+  const type = document.querySelector('#p-type-row .chip.active').dataset.type;
+  const therapist = document.getElementById('p-therapist').value.trim();
+  const frequency = document.getElementById('p-frequency').value.trim();
+  const startDate = document.getElementById('p-startdate').value;
+  const status = document.querySelector('#p-status-row .chip.active').dataset.status;
+  const notes = document.getElementById('p-notes').value.trim();
+
+  if(id){
+    Object.assign(DB.earlyPrograms.find(p=>p.id===id), {type,therapist,frequency,startDate,status,notes});
+  } else {
+    DB.earlyPrograms.push({id:uid(), type,therapist,frequency,startDate,status,notes});
+  }
+  saveDB(DB);
+  document.querySelector('.modal-backdrop').remove();
+  showToast('課程已儲存 🌱');
+  render();
+}
+
+function deleteProgram(id){
+  if(!confirm('確定要刪除這項課程嗎？')) return;
+  DB.earlyPrograms = DB.earlyPrograms.filter(p=>p.id!==id);
+  saveDB(DB);
+  render();
+}
+
+/* --- 進展日誌 modal --- */
+function openLogModal(id){
+  const editing = id ? DB.earlyLogs.find(l=>l.id===id) : null;
+  const types = ['物理','職能','語言'];
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="modal">
+      <div class="modal-head"><h3>${editing?'✏️ 編輯日誌':'📖 新增進展日誌'}</h3><button class="modal-close" onclick="this.closest('.modal-backdrop').remove()">✕</button></div>
+      <div class="row2">
+        <div class="field"><label>日期</label><input id="l-date" type="date" value="${editing?editing.date:new Date().toISOString().slice(0,10)}"></div>
+        <div class="field">
+          <label>類別</label>
+          <div class="chip-row" id="l-cat-row">
+            ${types.map(t=>`<span class="chip ${editing&&editing.category===t||(!editing&&t==='語言')?'active':''}" data-cat="${t}" onclick="selectChip(this,'l-cat-row')" style="font-size:11px; padding:6px 10px;">${EARLY_TYPE_ICON[t]}${t}</span>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="field"><label>內容</label><textarea id="l-content" placeholder="今天她…">${editing?escapeHtml(editing.content):''}</textarea></div>
+      <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink-soft); font-weight:700; margin-bottom:6px; cursor:pointer;">
+        <input type="checkbox" id="l-sync" ${editing&&editing.milestoneId?'checked disabled':''} style="width:18px; height:18px;">
+        ⭐ 同步加入大事記 ${editing&&editing.milestoneId?'(已同步)':''}
+      </label>
+      <div class="modal-actions">
+        <button class="btn btn-primary" style="flex:1; justify-content:center;" onclick="saveLog('${editing?editing.id:''}')">儲存</button>
+        <button class="btn" style="flex:1; justify-content:center;" onclick="this.closest('.modal-backdrop').remove()">取消</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+}
+
+function saveLog(id){
+  const date = document.getElementById('l-date').value;
+  const category = document.querySelector('#l-cat-row .chip.active').dataset.cat;
+  const content = document.getElementById('l-content').value.trim();
+  const syncCheckbox = document.getElementById('l-sync');
+  const shouldSync = syncCheckbox.checked && !syncCheckbox.disabled;
+
+  if(!date || !content){ alert('請填寫日期和內容'); return; }
+
+  let log;
+  if(id){
+    log = DB.earlyLogs.find(l=>l.id===id);
+    Object.assign(log, {date, category, content});
+  } else {
+    log = { id: uid(), date, category, content, milestoneId: null };
+    DB.earlyLogs.push(log);
+  }
+
+  if(shouldSync && !log.milestoneId){
+    const m = addMilestone({
+      date, icon: EARLY_TYPE_ICON[category], title: content.length>20? content.slice(0,20)+'…' : content,
+      desc: `早療進展(${category})：${content}`, category:'早療', sourceType:'early', sourceId: log.id
+    });
+    log.milestoneId = m.id;
+  }
+
+  saveDB(DB);
+  document.querySelector('.modal-backdrop').remove();
+  showToast(shouldSync ? '日誌已儲存，並加入大事記 ⭐' : '日誌已儲存 📖');
+  render();
+}
+
+function deleteLog(id){
+  if(!confirm('確定要刪除這篇日誌嗎？(若已同步的大事記不會一併刪除)')) return;
+  DB.earlyLogs = DB.earlyLogs.filter(l=>l.id!==id);
+  saveDB(DB);
+  render();
+}
+
+/* ============================================================
+   人際圈 People
+   ============================================================ */
+const RELATIONS = ['好朋友','玩伴','同學','老師','治療師','醫師','家人','鄰居','其他'];
+
+function outingCountFor(personId){
+  return DB.outings.filter(o => (o.peopleIds||[]).includes(personId)).length;
+}
+
+window.PAGES.people = function(){
+  const groups = RELATIONS.filter(r => DB.people.some(p=>p.relation===r));
+  return `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+      <div class="section-title" style="margin:0;"><span class="ic">👥</span>人際圈</div>
+      <button class="btn btn-primary btn-sm" onclick="openPersonModal()">+ 新增</button>
+    </div>
+
+    ${DB.people.length===0 ? `<div class="empty-state"><div class="ic">🫶</div><div class="msg">還沒有記錄重要的人</div></div>` :
+      groups.map(rel => `
+        <div style="margin-bottom:24px;">
+          <div style="font-size:11px; font-weight:800; color:var(--ink-faint); letter-spacing:1px; margin-bottom:10px;">${rel.toUpperCase()}</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            ${DB.people.filter(p=>p.relation===rel).map((p,i) => `
+              <div class="card" style="padding:14px 14px; transform:rotate(${i%2===0?'-1deg':'1deg'});">
+                <div style="display:flex; justify-content:space-between;">
+                  <div style="width:42px; height:42px; border-radius:50%; background:var(--cream); display:flex; align-items:center; justify-content:center; font-size:22px; margin-bottom:8px;">${p.emoji||'👤'}</div>
+                  <div style="display:flex; gap:2px;">
+                    <button class="modal-close" style="width:22px;height:22px;font-size:11px;" onclick="openPersonModal('${p.id}')">✏️</button>
+                    <button class="modal-close" style="width:22px;height:22px;font-size:11px;" onclick="deletePerson('${p.id}')">🗑️</button>
+                  </div>
+                </div>
+                <div style="font-weight:800; font-size:13.5px; color:var(--ink);">${escapeHtml(p.name)}</div>
+                ${p.role?`<div style="font-size:11px; color:var(--ink-faint); margin-bottom:6px;">${escapeHtml(p.role)}</div>`:''}
+                ${p.note?`<div style="font-size:11.5px; color:var(--ink-soft); line-height:1.5; margin-bottom:6px;">「${escapeHtml(p.note)}」</div>`:''}
+                ${outingCountFor(p.id)>0 ? `<div class="tag tag-sky">🧳 一起出遊 ${outingCountFor(p.id)} 次</div>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('')
+    }
+  `;
+};
+
+function openPersonModal(id){
+  const editing = id ? DB.people.find(p=>p.id===id) : null;
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="modal">
+      <div class="modal-head"><h3>${editing?'✏️ 編輯資料':'👥 新增人際圈'}</h3><button class="modal-close" onclick="this.closest('.modal-backdrop').remove()">✕</button></div>
+      <div class="row2">
+        <div class="field"><label>表情符號</label><input id="pe-emoji" value="${editing?escapeHtml(editing.emoji):'👤'}"></div>
+        <div class="field"><label>姓名</label><input id="pe-name" value="${editing?escapeHtml(editing.name):''}"></div>
+      </div>
+      <div class="field"><label>身份</label><input id="pe-role" value="${editing?escapeHtml(editing.role):''}" placeholder="班上同學、語言治療師…"></div>
+      <div class="field">
+        <label>關係</label>
+        <div class="chip-row" id="pe-rel-row">
+          ${RELATIONS.map(r=>`<span class="chip ${editing&&editing.relation===r||(!editing&&r==='好朋友')?'active':''}" data-rel="${r}" onclick="selectChip(this,'pe-rel-row')">${r}</span>`).join('')}
+        </div>
+      </div>
+      <div class="field"><label>小故事 / 備註</label><textarea id="pe-note">${editing?escapeHtml(editing.note):''}</textarea></div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" style="flex:1; justify-content:center;" onclick="savePerson('${editing?editing.id:''}')">儲存</button>
+        <button class="btn" style="flex:1; justify-content:center;" onclick="this.closest('.modal-backdrop').remove()">取消</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+}
+
+function savePerson(id){
+  const emoji = document.getElementById('pe-emoji').value.trim() || '👤';
+  const name = document.getElementById('pe-name').value.trim();
+  const role = document.getElementById('pe-role').value.trim();
+  const relation = document.querySelector('#pe-rel-row .chip.active').dataset.rel;
+  const note = document.getElementById('pe-note').value.trim();
+
+  if(!name){ alert('請填寫姓名'); return; }
+
+  if(id){
+    Object.assign(DB.people.find(p=>p.id===id), {emoji,name,role,relation,note});
+  } else {
+    DB.people.push({id:uid(), emoji,name,role,relation,note});
+  }
+  saveDB(DB);
+  document.querySelector('.modal-backdrop').remove();
+  showToast('已加入人際圈 👥');
+  render();
+}
+
+function deletePerson(id){
+  if(!confirm('確定要刪除這個人嗎？(出遊記錄裡的關聯也會移除)')) return;
+  DB.people = DB.people.filter(p=>p.id!==id);
+  DB.outings.forEach(o => { o.peopleIds = (o.peopleIds||[]).filter(pid=>pid!==id); });
+  saveDB(DB);
+  render();
+}
+
+/* ============================================================
+   相簿 Photos
+   ============================================================ */
+const PHOTO_TAGS = ['重要時刻','生日','旅遊','日常','早療','學校','家庭'];
+const PHOTO_TAG_CLASS = { '重要時刻':'tag-pink','生日':'tag-cream','旅遊':'tag-sky','日常':'tag-gray','早療':'tag-mint','學校':'tag-sky','家庭':'tag-cream' };
+
+window.PAGES.photos = function(){
+  const sorted = [...DB.photos].sort((a,b)=> b.date.localeCompare(a.date));
+  return `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+      <div class="section-title" style="margin:0;"><span class="ic">📸</span>相簿回憶</div>
+      <button class="btn btn-primary btn-sm" onclick="openPhotoModal()">+ 新增照片</button>
+    </div>
+
+    ${sorted.length===0 ? `<div class="empty-state"><div class="ic">🖼️</div><div class="msg">還沒有上傳照片</div></div>` :
+      `<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+        ${sorted.map((p,i) => `
+          <div class="card" style="padding:8px 8px 12px; transform:rotate(${i%3===0?'-1.5deg':i%3===1?'1deg':'-0.5deg'});">
+            <div style="background:#f5f0e8; border-radius:10px; overflow:hidden; margin-bottom:8px; aspect-ratio:1; display:flex; align-items:center; justify-content:center;">
+              ${p.dataUrl ? `<img src="${p.dataUrl}" style="width:100%; height:100%; object-fit:cover;">` : `<span style="font-size:40px;">📷</span>`}
+            </div>
+            <div style="font-size:12.5px; font-weight:700; color:var(--ink); margin-bottom:3px;">${escapeHtml(p.caption)||'(無說明)'}</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <div style="font-size:10.5px; color:var(--ink-faint);">${fmtDate(p.date)}</div>
+              <div style="display:flex; gap:2px;">
+                <button class="modal-close" style="width:22px;height:22px;font-size:11px;" onclick="openPhotoModal('${p.id}')">✏️</button>
+                <button class="modal-close" style="width:22px;height:22px;font-size:11px;" onclick="deletePhoto('${p.id}')">🗑️</button>
+              </div>
+            </div>
+            <div class="chip-row">
+              <span class="tag ${PHOTO_TAG_CLASS[p.tag]||'tag-gray'}">${p.tag}</span>
+              ${p.milestoneId?`<span class="tag tag-pink">⭐</span>`:''}
+            </div>
+          </div>
+        `).join('')}
+      </div>`
+    }
+  `;
+};
+
+function openPhotoModal(id){
+  const editing = id ? DB.photos.find(p=>p.id===id) : null;
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="modal">
+      <div class="modal-head"><h3>${editing?'✏️ 編輯照片':'📸 新增照片'}</h3><button class="modal-close" onclick="this.closest('.modal-backdrop').remove()">✕</button></div>
+      ${editing&&editing.dataUrl?`<img src="${editing.dataUrl}" style="width:100%; border-radius:12px; margin-bottom:14px; max-height:200px; object-fit:cover;">`:''}
+      <div class="field"><label>${editing?'更換照片(可不選)':'選擇照片'}</label><input id="ph-file" type="file" accept="image/*"></div>
+      <div class="row2">
+        <div class="field"><label>日期</label><input id="ph-date" type="date" value="${editing?editing.date:new Date().toISOString().slice(0,10)}"></div>
+        <div class="field">
+          <label>類別</label>
+          <select id="ph-tag">${PHOTO_TAGS.map(t=>`<option value="${t}" ${editing&&editing.tag===t?'selected':''}>${t}</option>`).join('')}</select>
+        </div>
+      </div>
+      <div class="field"><label>說明</label><textarea id="ph-caption" placeholder="這張照片的故事…">${editing?escapeHtml(editing.caption):''}</textarea></div>
+      <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink-soft); font-weight:700; margin-bottom:6px; cursor:pointer;">
+        <input type="checkbox" id="ph-sync" ${editing&&editing.milestoneId?'checked disabled':''} style="width:18px; height:18px;">
+        ⭐ 同步加入大事記 ${editing&&editing.milestoneId?'(已同步)':''}
+      </label>
+      <div class="modal-actions">
+        <button class="btn btn-primary" style="flex:1; justify-content:center;" onclick="savePhoto('${editing?editing.id:''}')">儲存</button>
+        <button class="btn" style="flex:1; justify-content:center;" onclick="this.closest('.modal-backdrop').remove()">取消</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+}
+
+async function savePhoto(id){
+  const fileInput = document.getElementById('ph-file');
+  const date = document.getElementById('ph-date').value;
+  const tag = document.getElementById('ph-tag').value;
+  const caption = document.getElementById('ph-caption').value.trim();
+  const syncCheckbox = document.getElementById('ph-sync');
+  const shouldSync = syncCheckbox.checked && !syncCheckbox.disabled;
+
+  let dataUrl = null;
+  if(fileInput.files && fileInput.files[0]){
+    dataUrl = await compressImage(fileInput.files[0], 700, 0.78);
+  }
+
+  let photo;
+  if(id){
+    photo = DB.photos.find(p=>p.id===id);
+    Object.assign(photo, {date, tag, caption});
+    if(dataUrl) photo.dataUrl = dataUrl;
+  } else {
+    if(!dataUrl){ alert('請選擇一張照片'); return; }
+    photo = { id: uid(), date, tag, caption, dataUrl, milestoneId:null };
+    DB.photos.push(photo);
+  }
+
+  if(shouldSync && !photo.milestoneId){
+    const m = addMilestone({
+      date, icon:'📸', title: caption || '珍貴的照片回憶',
+      desc: caption, category: tag==='早療'?'早療':(tag==='旅遊'?'旅遊':'成長'),
+      sourceType:'photo', sourceId: photo.id
+    });
+    photo.milestoneId = m.id;
+  }
+
+  saveDB(DB);
+  document.querySelector('.modal-backdrop').remove();
+  showToast(shouldSync ? '照片已儲存，並加入大事記 ⭐' : '照片已儲存 📸');
+  render();
+}
+
+function deletePhoto(id){
+  if(!confirm('確定要刪除這張照片嗎？')) return;
+  DB.photos = DB.photos.filter(p=>p.id!==id);
+  saveDB(DB);
+  render();
+}
+
+/* ============================================================
+   醫療 Medical
+   ============================================================ */
+window.PAGES.medical = function(){
+  const sortedVaccines = [...DB.vaccines].sort((a,b)=> (a.date||'').localeCompare(b.date||''));
+  const sortedVisits = [...DB.visits].sort((a,b)=> b.date.localeCompare(a.date));
+  const sortedGrowth = [...DB.growth].sort((a,b)=> a.date.localeCompare(b.date));
+
+  return `
+    <div class="section-title"><span class="ic">🩺</span>健康小護照</div>
+
+    <!-- 成長曲線 -->
+    <div class="card" style="margin-bottom:24px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <div style="font-weight:800; font-size:15px;">📏 成長曲線</div>
+        <button class="btn btn-primary btn-sm" onclick="openGrowthModal()">+ 新增紀錄</button>
+      </div>
+      ${sortedGrowth.length < 2 ? `<div class="empty-state" style="padding:20px;"><div class="ic">🌱</div><div class="msg">至少需要兩筆身高體重紀錄才能畫出曲線</div></div>` : renderGrowthChart(sortedGrowth)}
+      ${sortedGrowth.length > 0 ? `
+        <div style="margin-top:14px;">
+          ${sortedGrowth.slice().reverse().map(g => `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px dashed var(--border); font-size:12.5px;">
+              <span style="color:var(--ink-faint);">${fmtDate(g.date)}</span>
+              <span style="color:var(--ink); font-weight:700;">${g.height||'-'} cm · ${g.weight||'-'} kg</span>
+              <button class="modal-close" style="width:22px;height:22px;font-size:11px;" onclick="deleteGrowth('${g.id}')">🗑️</button>
+            </div>
+          `).join('')}
+        </div>
+      `: ''}
+    </div>
+
+    <!-- 疫苗 -->
+    <div class="card" style="margin-bottom:24px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <div style="font-weight:800; font-size:15px;">💉 疫苗接種記錄</div>
+        <button class="btn btn-primary btn-sm" onclick="openVaccineModal()">+ 新增疫苗</button>
+      </div>
+      ${sortedVaccines.length===0 ? `<div class="empty-state" style="padding:20px;"><div class="ic">💉</div><div class="msg">還沒有疫苗記錄</div></div>` :
+        sortedVaccines.map(v => `
+          <div style="display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px dashed var(--border);">
+            <button onclick="toggleVaccineDone('${v.id}')" style="width:30px; height:30px; border-radius:50%; border:2px solid ${v.done?'var(--mint-deep)':'var(--border)'}; background:${v.done?'var(--mint)':'#fff'}; font-size:14px; cursor:pointer; flex-shrink:0;">${v.done?'🌸':''}</button>
+            <div style="flex:1;">
+              <div style="font-size:13.5px; font-weight:700; color:var(--ink);">${escapeHtml(v.name)}</div>
+              <div style="font-size:11px; color:var(--ink-faint);">${v.date?fmtDate(v.date):'尚未接種'}</div>
+            </div>
+            <button class="modal-close" style="width:24px;height:24px;font-size:12px;" onclick="openVaccineModal('${v.id}')">✏️</button>
+            <button class="modal-close" style="width:24px;height:24px;font-size:12px;" onclick="deleteVaccine('${v.id}')">🗑️</button>
+          </div>
+        `).join('')
+      }
+    </div>
+
+    <!-- 就診紀錄 -->
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <div style="font-weight:800; font-size:15px;">🏥 就診紀錄</div>
+        <button class="btn btn-primary btn-sm" onclick="openVisitModal()">+ 新增就診</button>
+      </div>
+      ${sortedVisits.length===0 ? `<div class="empty-state" style="padding:20px;"><div class="ic">🏥</div><div class="msg">還沒有就診記錄</div></div>` :
+        sortedVisits.map(v => `
+          <div style="padding:12px 0; border-bottom:1px dashed var(--border);">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+              <div style="flex:1;">
+                <div class="chip-row" style="margin-bottom:6px;">
+                  <span class="tag tag-sky">${departmentIcon(v.department)} ${escapeHtml(v.department)||'未分類'}</span>
+                  <span class="tag tag-gray">${fmtDate(v.date)}</span>
+                  ${v.earlyLogId ? `<span class="tag tag-mint">🌱 已關聯早療</span>` : ''}
+                </div>
+                <div style="font-size:13px; font-weight:700; color:var(--ink);">${escapeHtml(v.hospital)||''} ${v.doctor?'· '+escapeHtml(v.doctor):''}</div>
+                ${v.note?`<div style="font-size:12.5px; color:var(--ink-soft); margin-top:4px; line-height:1.6;">${escapeHtml(v.note)}</div>`:''}
+              </div>
+              <div style="display:flex; gap:4px;">
+                <button class="modal-close" style="width:24px;height:24px;font-size:12px;" onclick="openVisitModal('${v.id}')">✏️</button>
+                <button class="modal-close" style="width:24px;height:24px;font-size:12px;" onclick="deleteVisit('${v.id}')">🗑️</button>
+              </div>
+            </div>
+          </div>
+        `).join('')
+      }
+    </div>
+  `;
+};
+
+function departmentIcon(dep){
+  if(!dep) return '🏥';
+  if(dep.includes('牙')) return '🦷';
+  if(dep.includes('耳')||dep.includes('鼻')||dep.includes('喉')) return '👂';
+  if(dep.includes('眼')) return '👁️';
+  if(dep.includes('皮膚')) return '🧴';
+  if(dep.includes('小兒')||dep.includes('兒科')) return '🩺';
+  if(dep.includes('復健')||dep.includes('物理')) return '🏃';
+  return '🏥';
+}
+
+/* --- 成長曲線 SVG --- */
+function renderGrowthChart(data){
+  const W = 600, H = 220, padL = 38, padR = 16, padT = 16, padB = 28;
+  const heights = data.map(g=>parseFloat(g.height)||0);
+  const weights = data.map(g=>parseFloat(g.weight)||0);
+  const maxH = Math.max(...heights, 1) * 1.1;
+  const minH = Math.min(...heights) * 0.9;
+  const maxW = Math.max(...weights, 1) * 1.2;
+
+  const x = (i) => padL + (i/(data.length-1)) * (W-padL-padR);
+  const yH = (v) => H-padB - ((v-minH)/(maxH-minH || 1)) * (H-padT-padB);
+  const yW = (v) => H-padB - (v/(maxW||1)) * (H-padT-padB);
+
+  const heightPts = data.map((g,i)=>`${x(i)},${yH(parseFloat(g.height)||0)}`).join(' ');
+  const weightPts = data.map((g,i)=>`${x(i)},${yW(parseFloat(g.weight)||0)}`).join(' ');
+  const heightArea = `${x(0)},${H-padB} ${heightPts} ${x(data.length-1)},${H-padB}`;
+
+  return `
+  <svg viewBox="0 0 ${W} ${H}" style="width:100%; height:auto; overflow:visible;">
+    ${[0,1,2,3].map(i => `<line x1="${padL}" y1="${padT + i*(H-padT-padB)/3}" x2="${W-padR}" y2="${padT + i*(H-padT-padB)/3}" stroke="#F1E4D8" stroke-width="1"/>`).join('')}
+    <polygon points="${heightArea}" fill="var(--pink)" opacity="0.18"/>
+    <polyline points="${heightPts}" fill="none" stroke="var(--pink-deep)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <polyline points="${weightPts}" fill="none" stroke="var(--sky-deep)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6,5"/>
+    ${data.map((g,i)=>`<circle cx="${x(i)}" cy="${yH(parseFloat(g.height)||0)}" r="4.5" fill="#fff" stroke="var(--pink-deep)" stroke-width="2.5"/>`).join('')}
+    ${data.map((g,i)=>`<circle cx="${x(i)}" cy="${yW(parseFloat(g.weight)||0)}" r="4" fill="#fff" stroke="var(--sky-deep)" stroke-width="2.5"/>`).join('')}
+    ${data.map((g,i)=> i%Math.ceil(data.length/6 || 1)===0 ? `<text x="${x(i)}" y="${H-8}" font-size="9" fill="var(--ink-faint)" text-anchor="middle">${fmtDate(g.date).slice(5)}</text>` : '').join('')}
+  </svg>
+  <div style="display:flex; gap:16px; justify-content:center; margin-top:6px;">
+    <div style="display:flex; align-items:center; gap:5px; font-size:11px; color:var(--ink-soft);"><span style="width:14px;height:3px;background:var(--pink-deep);border-radius:2px;display:inline-block;"></span>身高(cm)</div>
+    <div style="display:flex; align-items:center; gap:5px; font-size:11px; color:var(--ink-soft);"><span style="width:14px;height:3px;background:var(--sky-deep);border-radius:2px;display:inline-block;"></span>體重(kg)</div>
+  </div>
+  `;
+}
+
+function openGrowthModal(){
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="modal">
+      <div class="modal-head"><h3>📏 新增身高體重</h3><button class="modal-close" onclick="this.closest('.modal-backdrop').remove()">✕</button></div>
+      <div class="field"><label>日期</label><input id="g-date" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+      <div class="row2">
+        <div class="field"><label>身高 (cm)</label><input id="g-height" type="number" step="0.1"></div>
+        <div class="field"><label>體重 (kg)</label><input id="g-weight" type="number" step="0.1"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" style="flex:1; justify-content:center;" onclick="saveGrowth()">儲存</button>
+        <button class="btn" style="flex:1; justify-content:center;" onclick="this.closest('.modal-backdrop').remove()">取消</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+}
+
+function saveGrowth(){
+  const date = document.getElementById('g-date').value;
+  const height = document.getElementById('g-height').value;
+  const weight = document.getElementById('g-weight').value;
+  if(!date || (!height && !weight)){ alert('請至少填寫身高或體重'); return; }
+  DB.growth.push({id:uid(), date, height, weight});
+  saveDB(DB);
+  document.querySelector('.modal-backdrop').remove();
+  showToast('已記錄成長數據 📏');
+  render();
+}
+
+function deleteGrowth(id){
+  if(!confirm('確定要刪除這筆紀錄嗎？')) return;
+  DB.growth = DB.growth.filter(g=>g.id!==id);
+  saveDB(DB);
+  render();
+}
+
+/* --- 疫苗 modal --- */
+function openVaccineModal(id){
+  const editing = id ? DB.vaccines.find(v=>v.id===id) : null;
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="modal">
+      <div class="modal-head"><h3>${editing?'✏️ 編輯疫苗':'💉 新增疫苗'}</h3><button class="modal-close" onclick="this.closest('.modal-backdrop').remove()">✕</button></div>
+      <div class="field"><label>疫苗名稱</label><input id="v-name" value="${editing?escapeHtml(editing.name):''}" placeholder="五合一、water...等"></div>
+      <div class="field"><label>接種日期</label><input id="v-date" type="date" value="${editing?editing.date||'':''}"></div>
+      <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink-soft); font-weight:700; cursor:pointer;">
+        <input type="checkbox" id="v-done" ${editing&&editing.done?'checked':''} style="width:18px; height:18px;"> 已完成接種
+      </label>
+      <div class="modal-actions">
+        <button class="btn btn-primary" style="flex:1; justify-content:center;" onclick="saveVaccine('${editing?editing.id:''}')">儲存</button>
+        <button class="btn" style="flex:1; justify-content:center;" onclick="this.closest('.modal-backdrop').remove()">取消</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+}
+
+function saveVaccine(id){
+  const name = document.getElementById('v-name').value.trim();
+  const date = document.getElementById('v-date').value;
+  const done = document.getElementById('v-done').checked;
+  if(!name){ alert('請填寫疫苗名稱'); return; }
+  if(id){
+    Object.assign(DB.vaccines.find(v=>v.id===id), {name,date,done});
+  } else {
+    DB.vaccines.push({id:uid(), name, date, done});
+  }
+  saveDB(DB);
+  document.querySelector('.modal-backdrop').remove();
+  render();
+}
+
+function toggleVaccineDone(id){
+  const v = DB.vaccines.find(x=>x.id===id);
+  v.done = !v.done;
+  if(v.done && !v.date) v.date = new Date().toISOString().slice(0,10);
+  saveDB(DB);
+  render();
+}
+
+function deleteVaccine(id){
+  if(!confirm('確定要刪除嗎？')) return;
+  DB.vaccines = DB.vaccines.filter(v=>v.id!==id);
+  saveDB(DB);
+  render();
+}
+
+/* --- 就診 modal --- */
+function openVisitModal(id){
+  const editing = id ? DB.visits.find(v=>v.id===id) : null;
+  const linkableLogs = [...DB.earlyLogs].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30);
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="modal">
+      <div class="modal-head"><h3>${editing?'✏️ 編輯就診':'🏥 新增就診紀錄'}</h3><button class="modal-close" onclick="this.closest('.modal-backdrop').remove()">✕</button></div>
+      <div class="row2">
+        <div class="field"><label>日期</label><input id="vi-date" type="date" value="${editing?editing.date:new Date().toISOString().slice(0,10)}"></div>
+        <div class="field"><label>科別</label><input id="vi-dept" value="${editing?escapeHtml(editing.department):''}" placeholder="小兒科、復健科…"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>醫院</label><input id="vi-hospital" value="${editing?escapeHtml(editing.hospital):''}"></div>
+        <div class="field"><label>醫師</label><input id="vi-doctor" value="${editing?escapeHtml(editing.doctor):''}"></div>
+      </div>
+      <div class="field"><label>診斷 / 處置內容</label><textarea id="vi-note">${editing?escapeHtml(editing.note):''}</textarea></div>
+      <div class="field">
+        <label>關聯早療進展日誌 (選填)</label>
+        <select id="vi-earlylog">
+          <option value="">不關聯</option>
+          ${linkableLogs.map(l=>`<option value="${l.id}" ${editing&&editing.earlyLogId===l.id?'selected':''}>${fmtDate(l.date)} · ${l.category} · ${escapeHtml(l.content.slice(0,16))}</option>`).join('')}
+        </select>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" style="flex:1; justify-content:center;" onclick="saveVisit('${editing?editing.id:''}')">儲存</button>
+        <button class="btn" style="flex:1; justify-content:center;" onclick="this.closest('.modal-backdrop').remove()">取消</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+}
+
+function saveVisit(id){
+  const date = document.getElementById('vi-date').value;
+  const department = document.getElementById('vi-dept').value.trim();
+  const hospital = document.getElementById('vi-hospital').value.trim();
+  const doctor = document.getElementById('vi-doctor').value.trim();
+  const note = document.getElementById('vi-note').value.trim();
+  const earlyLogId = document.getElementById('vi-earlylog').value || null;
+
+  if(!date){ alert('請填寫日期'); return; }
+
+  if(id){
+    Object.assign(DB.visits.find(v=>v.id===id), {date,department,hospital,doctor,note,earlyLogId});
+  } else {
+    DB.visits.push({id:uid(), date,department,hospital,doctor,note,earlyLogId});
+  }
+  saveDB(DB);
+  document.querySelector('.modal-backdrop').remove();
+  showToast('就診紀錄已儲存 🏥');
+  render();
+}
+
+function deleteVisit(id){
+  if(!confirm('確定要刪除嗎？')) return;
+  DB.visits = DB.visits.filter(v=>v.id!==id);
+  saveDB(DB);
+  render();
+}
+
+/* ============================================================
+   出遊記錄 Outings
+   ============================================================ */
+window.PAGES.outings = function(){
+  const sorted = [...DB.outings].sort((a,b)=> b.date.localeCompare(a.date));
+  return `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+      <div class="section-title" style="margin:0;"><span class="ic">🧳</span>出遊記錄</div>
+      <button class="btn btn-primary btn-sm" onclick="openOutingModal()">+ 新增</button>
+    </div>
+
+    ${sorted.length===0 ? `<div class="empty-state"><div class="ic">🗺️</div><div class="msg">還沒有出遊記錄，開始寫第一篇旅行手帳吧</div></div>` :
+      sorted.map(o => `
+        <div class="card" style="margin-bottom:16px; background:linear-gradient(135deg,#fff 0%, #FFFBF3 100%); position:relative; overflow:hidden;">
+          <div style="position:absolute; top:14px; right:-26px; background:var(--sky); color:#fff; font-size:10px; font-weight:800; padding:3px 30px; transform:rotate(40deg); box-shadow:var(--shadow-sm);">${fmtDate(o.date).slice(0,4)}</div>
+          <div style="font-size:18px; font-weight:800; color:var(--ink); margin-bottom:4px;">📍 ${escapeHtml(o.location)}</div>
+          <div style="font-size:11.5px; color:var(--ink-faint); margin-bottom:10px;">${fmtDate(o.date)}</div>
+
+          ${(o.peopleIds&&o.peopleIds.length>0) ? `
+            <div class="chip-row" style="margin-bottom:10px;">
+              ${o.peopleIds.map(pid => { const p = DB.people.find(x=>x.id===pid); return p ? `<span class="tag tag-sky">${p.emoji||'👤'} ${escapeHtml(p.name)}</span>` : ''; }).join('')}
+            </div>` : ''}
+
+          ${o.note ? `<div style="font-size:13px; color:var(--ink-soft); line-height:1.7; margin-bottom:10px; background:var(--bg); border-radius:10px; padding:10px 12px;">${escapeHtml(o.note)}</div>` : ''}
+
+          ${(o.photos&&o.photos.length>0) ? `
+            <div style="display:flex; gap:8px; overflow-x:auto; padding-bottom:4px;">
+              ${o.photos.map(ph=>`<img src="${ph}" style="width:72px; height:72px; object-fit:cover; border-radius:10px; border:3px solid #fff; box-shadow:var(--shadow-sm); flex-shrink:0;">`).join('')}
+            </div>
+          ` : ''}
+
+          <div style="display:flex; gap:6px; justify-content:flex-end; margin-top:10px;">
+            <button class="btn btn-sm" onclick="openOutingModal('${o.id}')">✏️ 編輯</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteOuting('${o.id}')">🗑️ 刪除</button>
+          </div>
+        </div>
+      `).join('')
+    }
+  `;
+};
+
+let __outingPhotoBuffer = [];
+
+function openOutingModal(id){
+  const editing = id ? DB.outings.find(o=>o.id===id) : null;
+  __outingPhotoBuffer = editing && editing.photos ? [...editing.photos] : [];
+  const selectedPeople = editing ? (editing.peopleIds||[]) : [];
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="modal">
+      <div class="modal-head"><h3>${editing?'✏️ 編輯出遊紀錄':'🧳 新增出遊紀錄'}</h3><button class="modal-close" onclick="this.closest('.modal-backdrop').remove()">✕</button></div>
+      <div class="row2">
+        <div class="field"><label>地點</label><input id="o-location" value="${editing?escapeHtml(editing.location):''}" placeholder="台北動物園"></div>
+        <div class="field"><label>日期</label><input id="o-date" type="date" value="${editing?editing.date:new Date().toISOString().slice(0,10)}"></div>
+      </div>
+      <div class="field">
+        <label>同行的人</label>
+        <div class="chip-row" id="o-people-row">
+          ${DB.people.length===0 ? `<div style="font-size:12px; color:var(--ink-faint);">尚未建立人際圈，可先到「人際圈」新增</div>` :
+            DB.people.map(p=>`<span class="chip ${selectedPeople.includes(p.id)?'active':''}" data-pid="${p.id}" onclick="this.classList.toggle('active')">${p.emoji||'👤'} ${escapeHtml(p.name)}</span>`).join('')}
+        </div>
+      </div>
+      <div class="field"><label>感想</label><textarea id="o-note" placeholder="今天我們…">${editing?escapeHtml(editing.note):''}</textarea></div>
+      <div class="field">
+        <label>照片</label>
+        <input id="o-photo-input" type="file" accept="image/*" multiple onchange="handleOutingPhotoSelect(this)">
+        <div id="o-photo-preview" style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" style="flex:1; justify-content:center;" onclick="saveOuting('${editing?editing.id:''}')">儲存</button>
+        <button class="btn" style="flex:1; justify-content:center;" onclick="this.closest('.modal-backdrop').remove()">取消</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+  renderOutingPhotoPreview();
+}
+
+function renderOutingPhotoPreview(){
+  const box = document.getElementById('o-photo-preview');
+  if(!box) return;
+  box.innerHTML = __outingPhotoBuffer.map((src,i)=>`
+    <div style="position:relative;">
+      <img src="${src}" style="width:56px; height:56px; object-fit:cover; border-radius:8px;">
+      <button onclick="removeOutingPhoto(${i})" style="position:absolute; top:-6px; right:-6px; width:20px; height:20px; border-radius:50%; background:#fff; border:1px solid var(--border); font-size:10px; cursor:pointer;">✕</button>
+    </div>
+  `).join('');
+}
+
+function removeOutingPhoto(i){
+  __outingPhotoBuffer.splice(i,1);
+  renderOutingPhotoPreview();
+}
+
+async function handleOutingPhotoSelect(input){
+  for(const file of input.files){
+    const compressed = await compressImage(file, 600, 0.75);
+    __outingPhotoBuffer.push(compressed);
+  }
+  renderOutingPhotoPreview();
+  input.value = '';
+}
+
+function saveOuting(id){
+  const location = document.getElementById('o-location').value.trim();
+  const date = document.getElementById('o-date').value;
+  const note = document.getElementById('o-note').value.trim();
+  const peopleIds = Array.from(document.querySelectorAll('#o-people-row .chip.active')).map(c=>c.dataset.pid);
+
+  if(!location || !date){ alert('請填寫地點和日期'); return; }
+
+  if(id){
+    Object.assign(DB.outings.find(o=>o.id===id), {location,date,note,peopleIds, photos:[...__outingPhotoBuffer]});
+  } else {
+    DB.outings.push({id:uid(), location,date,note,peopleIds, photos:[...__outingPhotoBuffer]});
+  }
+  saveDB(DB);
+  document.querySelector('.modal-backdrop').remove();
+  showToast('出遊紀錄已儲存 🧳');
+  render();
+}
+
+function deleteOuting(id){
+  if(!confirm('確定要刪除這篇出遊紀錄嗎？')) return;
+  DB.outings = DB.outings.filter(o=>o.id!==id);
+  saveDB(DB);
+  render();
+}
+
+/* ============================================================
+   全站搜尋 Search
+   ============================================================ */
+function searchAll(keyword){
+  if(!keyword || !keyword.trim()) return [];
+  const kw = keyword.trim().toLowerCase();
+  const results = [];
+
+  DB.milestones.forEach(m => {
+    if((m.title+m.desc+m.category).toLowerCase().includes(kw))
+      results.push({tab:'timeline', icon:m.icon, title:m.title, sub:`大事記 · ${fmtDate(m.date)}`, date:m.date});
+  });
+  DB.earlyLogs.forEach(l => {
+    if((l.content+l.category).toLowerCase().includes(kw))
+      results.push({tab:'early', icon:EARLY_TYPE_ICON[l.category]||'🌱', title:l.content, sub:`早療日誌(${l.category}) · ${fmtDate(l.date)}`, date:l.date});
+  });
+  DB.earlyPrograms.forEach(p => {
+    if((p.type+p.therapist+p.notes).toLowerCase().includes(kw))
+      results.push({tab:'early', icon:EARLY_TYPE_ICON[p.type]||'🌱', title:`${p.type} - ${p.therapist}`, sub:'療育課程', date:p.startDate||''});
+  });
+  DB.people.forEach(p => {
+    if((p.name+p.role+p.note+p.relation).toLowerCase().includes(kw))
+      results.push({tab:'people', icon:p.emoji||'👤', title:p.name, sub:`人際圈 · ${p.relation}`, date:''});
+  });
+  DB.photos.forEach(p => {
+    if((p.caption+p.tag).toLowerCase().includes(kw))
+      results.push({tab:'photos', icon:'📸', title:p.caption||'(無說明)', sub:`相簿 · ${fmtDate(p.date)}`, date:p.date});
+  });
+  DB.vaccines.forEach(v => {
+    if(v.name.toLowerCase().includes(kw))
+      results.push({tab:'medical', icon:'💉', title:v.name, sub:'疫苗記錄', date:v.date||''});
+  });
+  DB.visits.forEach(v => {
+    if((v.hospital+v.department+v.doctor+v.note).toLowerCase().includes(kw))
+      results.push({tab:'medical', icon:'🏥', title:`${v.hospital||''} ${v.department||''}`, sub:`就診紀錄 · ${fmtDate(v.date)}`, date:v.date});
+  });
+  DB.outings.forEach(o => {
+    if((o.location+o.note).toLowerCase().includes(kw))
+      results.push({tab:'outings', icon:'🧳', title:o.location, sub:`出遊記錄 · ${fmtDate(o.date)}`, date:o.date});
+  });
+
+  results.sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+  return results;
+}
+
+function openSearchModal(){
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="modal">
+      <div class="modal-head"><h3>🔍 搜尋垚垚的紀錄</h3><button class="modal-close" onclick="this.closest('.modal-backdrop').remove()">✕</button></div>
+      <div class="field" style="margin-bottom:10px;">
+        <input id="search-input" placeholder="輸入關鍵字，例如：跳、王老師、動物園…" oninput="renderSearchResults()" autofocus>
+      </div>
+      <div id="search-results"></div>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+  setTimeout(()=> document.getElementById('search-input').focus(), 100);
+}
+
+function renderSearchResults(){
+  const kw = document.getElementById('search-input').value;
+  const box = document.getElementById('search-results');
+  if(!kw.trim()){ box.innerHTML = `<div class="empty-state" style="padding:20px;"><div class="ic">🔍</div><div class="msg">輸入關鍵字開始搜尋</div></div>`; return; }
+  const results = searchAll(kw);
+  if(results.length===0){ box.innerHTML = `<div class="empty-state" style="padding:20px;"><div class="ic">🌫️</div><div class="msg">沒有找到符合的紀錄</div></div>`; return; }
+  box.innerHTML = results.map(r => `
+    <div style="display:flex; gap:10px; padding:10px 4px; border-bottom:1px dashed var(--border); cursor:pointer;" onclick="setTab('${r.tab}'); document.querySelector('.modal-backdrop').remove();">
+      <span style="font-size:20px;">${r.icon}</span>
+      <div style="flex:1; min-width:0;">
+        <div style="font-size:13.5px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(r.title)}</div>
+        <div style="font-size:11px; color:var(--ink-faint);">${r.sub}</div>
+      </div>
+    </div>
+  `).join('');
 }
 
 document.addEventListener('DOMContentLoaded', render);
